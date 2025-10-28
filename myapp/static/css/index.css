@@ -1,4 +1,4 @@
-/* myapp/static/css/home.css - 메인 홈 화면 전용 스타일 */
+/* myapp/static/css/index.css - 메인 홈 화면 전용 스타일 */
 
 body {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -79,7 +79,7 @@ h1 {
     border: none;
 }
 
-.cmd {
+.code {
     background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
     color: white;
     border: none;
@@ -105,6 +105,18 @@ h1 {
 
 .dxss {
     background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+    color: #333;
+    border: none;
+}
+
+.cmd {
+    background: linear-gradient(135deg, #FF6B6B 0%, #FFE66D 100%);
+    color: white;
+    border: none;
+}
+
+.fileup {
+    background: linear-gradient(135deg, #A8E6CF 0%, #FFD3B6 100%);
     color: #333;
     border: none;
 }

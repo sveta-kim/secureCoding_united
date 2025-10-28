@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>File Upload</title>
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'css/common.css' %}">
+  <link rel="stylesheet" href="{% static 'css/test-pages.css' %}">
+  <style>
+    li { list-style-type: none; }
+    .file-upload h1 {
+      border-bottom: 3px solid #A8E6CF;
+    }
+    .file-list {
+      margin: 30px 0;
+    }
+    .file-item {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 5px;
+      margin: 10px 0;
+      border-left: 3px solid #007bff;
+    }
+    .file-name {
+      font-weight: bold;
+      color: #333;
+      margin-bottom: 5px;
+    }
+    .file-info {
+      color: #666;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container file-upload">
+    <h1>위험한 파일 업로드</h1>
+
+    <div class="description">
+      <strong>위험한 파일 업로드란?</strong><br>
+      서버 측에서 업로드되는 파일에 대한 적절한 검증 없이 파일을 저장할 경우,
+      공격자가 악성 스크립트 파일(웹쉘 등)을 업로드하여 시스템을 제어하거나
+      내부 명령어를 실행할 수 있는 보안 취약점입니다.
+    </div>
+
+    <h2>📁 파일 업로드</h2>
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      <label for="upload_file"><strong>업로드할 파일 선택</strong></label>
+      <input type="file" name="upload_file" id="upload_file" required>
+
+      <button type="submit" name="mode" value="vulnerable" class="vulnerable">
+        ❌ 취약코드로 업로드
+      </button>
+      <button type="submit" name="mode" value="safe" class="safe">
+        ✅ 안전코드로 업로드
+      </button>
+    </form>
+
+    <!-- 모두 삭제 버튼 -->
+    <form method="post" style="margin-top: 10px;" onsubmit="return confirm('정말로 모든 파일을 삭제하시겠습니까?');">
+      {% csrf_token %}
+      <button type="submit" name="clear" value="true" class="clear-btn">
+        🗑️ 모두 삭제
+      </button>
+    </form>
+
+    <div class="file-list">
+      <h2>📋 업로드된 파일 목록 ({{ uploaded_files|length }}개)</h2>
+      {% if uploaded_files %}
+        {% for file in uploaded_files %}
+        <div class="file-item">
+          <div class="file-name">
+            {% if file.saved_name %}
+              📄 {{ file.name }} → {{ file.saved_name }}
+            {% else %}
+              📄 {{ file.name }}
+            {% endif %}
+          </div>
+          <div class="file-info">
+            크기: {{ file.size }} bytes
+            {% if file.mime %}
+              | MIME: {{ file.mime }}
+            {% endif %}
+          </div>
+          <small style="color: #999;">
+            모드: {% if file.is_safe %}✅ 안전코드{% else %}❌ 취약코드{% endif %}
+          </small>
+        </div>
+        {% endfor %}
+      {% else %}
+        <p style="color: #999;">아직 업로드된 파일이 없습니다.</p>
+      {% endif %}
+    </div>
+
+    <div class="attack-example">
+      <h3>공격 예제</h3>
+      <p><strong>정상 파일:</strong> image.jpg, document.pdf</p>
+      <p><strong>악의적 파일:</strong></p>
+
+      <h4>1️⃣ 웹쉘 업로드 (PHP)</h4>
+      <div class="code">
+        &lt;?php<br>
+        &nbsp;&nbsp;system($_GET['cmd']);<br>
+        ?&gt;<br>
+        <br>
+        # shell.php로 저장 후 업로드<br>
+        # 접근: http://target.com/uploads/shell.php?cmd=whoami
+      </div>
+
+      <h4>2️⃣ 확장자 우회 시도</h4>
+      <ul>
+        <li><code>shell.php.jpg</code> - 이중 확장자</li>
+        <li><code>shell.php%00.jpg</code> - Null byte injection</li>
+        <li><code>shell.pHp</code> - 대소문자 우회</li>
+        <li><code>shell.php5</code> - 대체 확장자</li>
+      </ul>
+
+      <h4>3️⃣ MIME 타입 위조</h4>
+      <div class="code">
+        # 악성 PHP 파일의 헤더를 image/jpeg로 위조<br>
+        # Content-Type: image/jpeg 설정
+      </div>
+
+      <h4>💡 안전한 파일 업로드 구현</h4>
+      <div class="code">
+        # 1. 파일 크기 제한<br>
+        max_size = 5 * 1024 * 1024  # 5MB<br>
+        <br>
+        # 2. 확장자 화이트리스트<br>
+        allowed_ext = ['.jpg', '.png', '.pdf']<br>
+        <br>
+        # 3. MIME 타입 검증<br>
+        allowed_mimes = ['image/jpeg', 'image/png']<br>
+        <br>
+        # 4. 파일명 무작위화<br>
+        safe_name = f"{uuid.uuid4()}.jpg"<br>
+        <br>
+        # 5. 웹 루트 외부에 저장<br>
+        # 6. 실행 권한 제거
+      </div>
+
+      <p><strong>실제 공격 시나리오</strong></p>
+      <ul>
+        <li>웹쉘 업로드 → 시스템 명령어 실행</li>
+        <li>악성 스크립트 업로드 → 다른 사용자 감염</li>
+        <li>대용량 파일 업로드 → 서비스 거부 공격(DoS)</li>
+        <li>민감한 파일 덮어쓰기 → 설정 파일 변조</li>
+      </ul>
+    </div>
+
+    <div class="links">
+      <a href="{% url 'index' %}">🏠 메인으로</a>
+    </div>
+  </div>
+</body>
+</html>

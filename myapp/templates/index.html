@@ -20,10 +20,10 @@
                 <div class="card-desc">데이터베이스 쿼리 조작을 통한 무단 접근 테스트</div>
             </a>
 
-            <a href="{% url 'command_injection' %}" class="card cmd">
+            <a href="{% url 'code_injection' %}" class="card code">
                 <div class="card-icon">⚙️</div>
-                <div class="card-title">Command Injection</div>
-                <div class="card-desc">시스템 명령어 실행을 통한 코드 삽입 테스트</div>
+                <div class="card-title">Code Injection</div>
+                <div class="card-desc">Python 코드 실행을 통한 코드 삽입 테스트</div>
             </a>
 
             <a href="{% url 'directory_traversal' %}" class="card dir">
@@ -48,6 +48,18 @@
                 <div class="card-icon">🌐</div>
                 <div class="card-title">DOM-based XSS</div>
                 <div class="card-desc">클라이언트 측 DOM 조작을 통한 XSS 공격 테스트</div>
+            </a>
+
+            <a href="{% url 'command_injection' %}" class="card cmd">
+                <div class="card-icon">💻</div>
+                <div class="card-title">Command Injection</div>
+                <div class="card-desc">운영체제 명령어 삽입을 통한 시스템 제어 테스트</div>
+            </a>
+
+            <a href="{% url 'file_upload' %}" class="card fileup">
+                <div class="card-icon">📤</div>
+                <div class="card-title">File Upload</div>
+                <div class="card-desc">위험한 파일 업로드를 통한 시스템 침투 테스트</div>
             </a>
         </div>
 

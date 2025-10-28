@@ -5,8 +5,8 @@
     border-bottom: 3px solid #f5576c;
 }
 
-/* Command Injection 페이지 */
-.command-injection h1 {
+/* Code Injection 페이지 */
+.code-injection h1 {
     border-bottom: 3px solid #00f2fe;
 }
 
@@ -89,4 +89,37 @@
 #greeting {
     font-size: 18px;
     color: #333;
+}
+
+/* Command Injection 페이지 */
+.command-injection h1 {
+    border-bottom: 3px solid #FF6B6B;
+}
+
+/* File Upload 페이지 */
+.file-upload h1 {
+    border-bottom: 3px solid #A8E6CF;
+}
+
+.file-list {
+    margin: 30px 0;
+}
+
+.file-item {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 5px;
+    margin: 10px 0;
+    border-left: 3px solid #007bff;
+}
+
+.file-name {
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 5px;
+}
+
+.file-info {
+    color: #666;
+    font-size: 14px;
 }

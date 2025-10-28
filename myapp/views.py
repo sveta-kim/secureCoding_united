@@ -15,7 +15,6 @@ def main(request):
 
 # 기존 index (하위 호환성)
 def index(request):
-    # 기존 index.html이 있었다면 그대로 사용
     return render(request, 'index.html')
 
 
@@ -49,13 +48,12 @@ def sql_injection(request):
                             'results': [f"ID: {r[0]}, UserID: {r[1]}, Password: {r[2]}" for r in results],
                         }
                     except Exception as e:
-                        # SQL 오류 처리
                         context = {
                             'mode': mode,
                             'executed_sql': sql_query,
                             'results': [],
                             'message': f'SQL 실행 오류가 발생했습니다. 입력값을 확인해주세요.',
-                            'error_detail': str(e) if mode == 'vulnerable' else None  # 취약 모드에서만 상세 오류 표시
+                            'error_detail': str(e) if mode == 'vulnerable' else None
                         }
                 else:
                     # ✅ 안전한 코드 - Parameterized Query 사용
@@ -71,7 +69,6 @@ def sql_injection(request):
                             'results': [f"ID: {r[0]}, UserID: {r[1]}, Password: {r[2]}" for r in results],
                         }
                     except Exception as e:
-                        # SQL 오류 처리
                         context = {
                             'mode': mode,
                             'executed_sql': sql_query,
@@ -87,8 +84,8 @@ def sql_injection(request):
     return render(request, 'sql_injection.html', {'form': form})
 
 
-# 2. Command Injection
-def command_injection(request):
+# 2. Code Injection
+def code_injection(request):
     if request.method == 'POST':
         command = request.POST.get('command', '').strip()
         mode = request.POST.get('mode', 'safe')
@@ -127,7 +124,6 @@ def command_injection(request):
                 error_detail = str(e)
         else:
             # ✅ 안전한 코드 - 입력값 검증
-            # 허용된 문자만 체크 (숫자, 연산자, 공백, 괄호)
             if not all(c in '0123456789+-*/(). ' for c in command):
                 executed_sql = "입력 검증 실패"
                 results = []
@@ -135,7 +131,6 @@ def command_injection(request):
                 error_detail = f"허용되지 않은 문자가 포함됨: {command}"
             else:
                 try:
-                    # 안전한 수식만 허용 (__builtins__ 제거)
                     result = eval(command, {"__builtins__": {}}, {})
                     executed_sql = f"eval('{command}') with restricted builtins"
                     results = [f"결과: {result}"]
@@ -161,7 +156,7 @@ def command_injection(request):
         }
         return render(request, 'success.html', context)
 
-    return render(request, 'command_injection.html')
+    return render(request, 'code_injection.html')
 
 
 # 3. Directory Traversal
@@ -179,10 +174,8 @@ def directory_traversal(request):
             }
             return render(request, 'success.html', context)
 
-        # 테스트용 디렉토리 (실제로는 안전한 위치에 있어야 함)
         base_dir = '/tmp/uploads/'
 
-        # 테스트 파일 생성
         try:
             os.makedirs(base_dir, exist_ok=True)
             test_file_path = os.path.join(base_dir, 'test.txt')
@@ -206,7 +199,7 @@ def directory_traversal(request):
             try:
                 with open(file_path, 'r', encoding='utf-8') as f:
                     content = f.read()
-                results = [f"파일 내용:\n{content[:500]}"]  # 처음 500자만
+                results = [f"파일 내용:\n{content[:500]}"]
                 message = None
                 error_detail = None
             except FileNotFoundError:
@@ -227,14 +220,12 @@ def directory_traversal(request):
                 error_detail = str(e)
         else:
             # ✅ 안전한 코드 - 경로 검증
-            # 파일명에 .. 이나 / 가 있으면 거부
             if '..' in filename or '/' in filename or '\\' in filename:
                 executed_sql = "입력 검증 실패"
                 results = []
                 message = "잘못된 파일명입니다. 경로 조작 문자(.., /, \\)가 포함되어 있습니다."
                 error_detail = f"차단된 문자 포함: {filename}"
             else:
-                # realpath로 실제 경로 확인
                 file_path = os.path.join(base_dir, filename)
                 real_path = os.path.realpath(file_path)
                 real_base = os.path.realpath(base_dir)
@@ -249,7 +240,7 @@ def directory_traversal(request):
                     try:
                         with open(real_path, 'r', encoding='utf-8') as f:
                             content = f.read()
-                        results = [f"파일 내용:\n{content[:500]}"]  # 처음 500자만
+                        results = [f"파일 내용:\n{content[:500]}"]
                         message = None
                         error_detail = None
                     except FileNotFoundError:
@@ -278,7 +269,6 @@ def reflected_xss(request):
     name = request.GET.get('name', '')
     mode = request.GET.get('mode', '')
 
-    # views.py에서는 이스케이프 하지 않고 템플릿에 맡김
     context = {
         'name': name,
         'mode': mode,
@@ -287,15 +277,12 @@ def reflected_xss(request):
 
 
 # 5. Stored XSS
-# 간단한 메모리 저장소 (실제로는 DB 사용)
 stored_comments = []
-
 
 def stored_xss(request):
     global stored_comments
 
     if request.method == 'POST':
-        # 모두 삭제
         if request.POST.get('clear'):
             stored_comments = []
             return redirect('stored_xss')
@@ -318,7 +305,234 @@ def stored_xss(request):
     }
     return render(request, 'stored_xss.html', context)
 
+
 # 6. DOM-based XSS
 def dom_xss(request):
-    # DOM XSS는 클라이언트 측에서 처리되므로 서버는 단순히 템플릿만 반환
     return render(request, 'dom_xss.html')
+
+
+# 7. Command Injection (OS Command Injection)
+def command_injection(request):
+    if request.method == 'POST':
+        command = request.POST.get('command', '').strip()
+        mode = request.POST.get('mode', 'safe')
+
+        if not command:
+            context = {
+                'mode': mode,
+                'executed_sql': '입력 없음',
+                'results': [],
+                'message': '실행할 명령어를 입력해주세요.'
+            }
+            return render(request, 'success.html', context)
+
+        if mode == 'vulnerable':
+            # ❌ 취약한 코드 - os.popen() 직접 사용
+            try:
+                import os
+                result = os.popen(command).read()
+                executed_sql = f"os.popen('{command}')"
+                results = [f"결과:\n{result}"] if result else ["명령 실행 완료 (출력 없음)"]
+                message = None
+                error_detail = None
+            except Exception as e:
+                executed_sql = f"os.popen('{command}')"
+                results = []
+                message = f"명령 실행 중 오류가 발생했습니다: {type(e).__name__}"
+                error_detail = str(e)
+        else:
+            # ✅ 안전한 코드 - 화이트리스트 방식
+            allowed_commands = {
+                'date': ['date'],
+                'hostname': ['hostname'],
+                'whoami': ['whoami'],
+                'pwd': ['pwd'],
+            }
+
+            if command not in allowed_commands:
+                executed_sql = "화이트리스트 검증 실패"
+                results = []
+                message = f"허용되지 않은 명령어입니다. 사용 가능한 명령어: {', '.join(allowed_commands.keys())}"
+                error_detail = f"차단된 명령어: {command}"
+            else:
+                try:
+                    import subprocess
+                    result = subprocess.run(
+                        allowed_commands[command],
+                        capture_output=True,
+                        text=True,
+                        timeout=5,
+                        shell=False
+                    )
+                    executed_sql = f"subprocess.run({allowed_commands[command]}, shell=False)"
+                    output = result.stdout if result.stdout else result.stderr
+                    results = [f"결과:\n{output}"] if output else ["명령 실행 완료 (출력 없음)"]
+                    message = None
+                    error_detail = None
+                except subprocess.TimeoutExpired:
+                    executed_sql = f"subprocess.run({allowed_commands[command]})"
+                    results = []
+                    message = "명령 실행 시간이 초과되었습니다."
+                    error_detail = "TimeoutExpired: 5초 초과"
+                except Exception as e:
+                    executed_sql = f"subprocess.run({allowed_commands[command]})"
+                    results = []
+                    message = f"명령 실행 중 오류가 발생했습니다: {type(e).__name__}"
+                    error_detail = str(e)
+
+        context = {
+            'mode': mode,
+            'executed_sql': executed_sql,
+            'results': results,
+            'message': message,
+            'error_detail': error_detail if mode == 'vulnerable' else None
+        }
+        return render(request, 'success.html', context)
+
+    return render(request, 'command_injection.html')
+
+
+# 8. 위험한 파일 업로드
+import os
+import mimetypes
+from django.core.files.storage import FileSystemStorage
+from django.conf import settings
+
+uploaded_files = []
+
+def file_upload(request):
+    global uploaded_files
+
+    if request.method == 'POST':
+        if request.POST.get('clear'):
+            for file_info in uploaded_files:
+                file_path = file_info.get('path')
+                if file_path and os.path.exists(file_path):
+                    try:
+                        os.remove(file_path)
+                    except:
+                        pass
+            uploaded_files = []
+            return redirect('file_upload')
+
+        uploaded_file = request.FILES.get('upload_file')
+        mode = request.POST.get('mode', 'safe')
+
+        if not uploaded_file:
+            context = {
+                'mode': mode,
+                'executed_sql': '파일 없음',
+                'results': [],
+                'message': '업로드할 파일을 선택해주세요.'
+            }
+            return render(request, 'success.html', context)
+
+        if mode == 'vulnerable':
+            # ❌ 취약한 코드 - 파일 검증 없이 업로드
+            try:
+                upload_dir = os.path.join(settings.BASE_DIR, 'uploads')
+                os.makedirs(upload_dir, exist_ok=True)
+
+                fs = FileSystemStorage(location=upload_dir)
+                filename = fs.save(uploaded_file.name, uploaded_file)
+                file_path = fs.path(filename)
+
+                uploaded_files.append({
+                    'name': uploaded_file.name,
+                    'size': uploaded_file.size,
+                    'path': file_path,
+                    'is_safe': False
+                })
+
+                executed_sql = f"파일 저장: {upload_dir}/{uploaded_file.name}"
+                results = [
+                    f"파일명: {uploaded_file.name}",
+                    f"크기: {uploaded_file.size} bytes",
+                    f"저장 경로: {file_path}"
+                ]
+                message = "파일이 업로드되었습니다."
+                error_detail = None
+            except Exception as e:
+                executed_sql = "파일 업로드 실패"
+                results = []
+                message = f"파일 업로드 중 오류가 발생했습니다: {type(e).__name__}"
+                error_detail = str(e)
+        else:
+            # ✅ 안전한 코드 - 파일 검증 후 업로드
+            max_size = 5 * 1024 * 1024
+            if uploaded_file.size > max_size:
+                executed_sql = "파일 크기 검증 실패"
+                results = []
+                message = f"파일 크기가 너무 큽니다. 최대 5MB까지 허용됩니다. (현재: {uploaded_file.size / 1024 / 1024:.2f}MB)"
+                error_detail = f"파일 크기: {uploaded_file.size} bytes"
+            else:
+                allowed_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.pdf', '.txt']
+                file_ext = os.path.splitext(uploaded_file.name)[1].lower()
+
+                if file_ext not in allowed_extensions:
+                    executed_sql = "파일 확장자 검증 실패"
+                    results = []
+                    message = f"허용되지 않은 파일 형식입니다. 허용된 확장자: {', '.join(allowed_extensions)}"
+                    error_detail = f"업로드 시도한 확장자: {file_ext}"
+                else:
+                    allowed_mimes = [
+                        'image/jpeg', 'image/png', 'image/gif',
+                        'application/pdf', 'text/plain'
+                    ]
+                    mime_type = uploaded_file.content_type
+
+                    if mime_type not in allowed_mimes:
+                        executed_sql = "MIME 타입 검증 실패"
+                        results = []
+                        message = f"허용되지 않은 파일 타입입니다. (MIME: {mime_type})"
+                        error_detail = f"탐지된 MIME 타입: {mime_type}"
+                    else:
+                        try:
+                            upload_dir = os.path.join(settings.BASE_DIR, 'uploads')
+                            os.makedirs(upload_dir, exist_ok=True)
+
+                            import uuid
+                            safe_filename = f"{uuid.uuid4()}{file_ext}"
+
+                            fs = FileSystemStorage(location=upload_dir)
+                            filename = fs.save(safe_filename, uploaded_file)
+                            file_path = fs.path(filename)
+
+                            uploaded_files.append({
+                                'name': uploaded_file.name,
+                                'saved_name': safe_filename,
+                                'size': uploaded_file.size,
+                                'mime': mime_type,
+                                'path': file_path,
+                                'is_safe': True
+                            })
+
+                            executed_sql = f"파일 저장 (검증 완료): {upload_dir}/{safe_filename}"
+                            results = [
+                                f"원본 파일명: {uploaded_file.name}",
+                                f"저장 파일명: {safe_filename}",
+                                f"크기: {uploaded_file.size} bytes",
+                                f"MIME 타입: {mime_type}",
+                                f"저장 경로: {file_path}"
+                            ]
+                            message = "파일이 안전하게 업로드되었습니다."
+                            error_detail = None
+                        except Exception as e:
+                            executed_sql = "파일 업로드 실패"
+                            results = []
+                            message = f"파일 업로드 중 오류가 발생했습니다: {type(e).__name__}"
+                            error_detail = str(e)
+
+        context = {
+            'mode': mode,
+            'executed_sql': executed_sql,
+            'results': results,
+            'message': message,
+            'error_detail': error_detail if mode == 'vulnerable' else None
+        }
+        return render(request, 'success.html', context)
+
+    context = {
+        'uploaded_files': uploaded_files,
+    }
+    return render(request, 'file_upload.html', context)
