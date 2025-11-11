@@ -18,4 +18,14 @@ urlpatterns = [
     path('dom-xss/', views.dom_xss, name='dom_xss'),
     path('command-injection/', views.command_injection, name='command_injection'),
     path('file-upload/', views.file_upload, name='file_upload'),
+    path('open-redirect/', views.open_redirect, name='open_redirect'),
+    path('xml-injection/', views.xml_injection, name='xml_injection'),
 ]
+
+
+
+
+
+
+
+

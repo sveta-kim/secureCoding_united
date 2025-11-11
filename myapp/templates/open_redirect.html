@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'css/common.css' %}">
+  <link rel="stylesheet" href="{% static 'css/test-pages.css' %}">
+  <title>Open Redirect 테스트</title>
+  <style>
+    li { list-style-type: none; }
+
+    .open-redirect h1 {
+      border-bottom: 3px solid #FF6B9D;
+    }
+
+    .test-links {
+      background: #f8f9fa;
+      padding: 20px;
+      border-radius: 10px;
+      margin: 20px 0;
+    }
+
+    .test-links h3 {
+      color: #333;
+      margin-bottom: 15px;
+    }
+
+    .test-link-item {
+      margin: 10px 0;
+      padding: 10px;
+      background: white;
+      border-radius: 5px;
+      border-left: 3px solid #007bff;
+    }
+
+    .test-link-item a {
+      color: #007bff;
+      text-decoration: none;
+      word-break: break-all;
+    }
+
+    .test-link-item a:hover {
+      text-decoration: underline;
+    }
+
+    .test-link-item .label {
+      font-weight: bold;
+      color: #666;
+      margin-right: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container open-redirect">
+    <h1>🔗 Open Redirect 테스트</h1>
+
+    <div class="description">
+      <strong>Open Redirect란?</strong><br>
+      웹 애플리케이션에서 사용자 입력값을 검증하지 않고 리다이렉트(URL 이동)에 사용할 때,
+      공격자가 악의적인 사이트로 사용자를 유도할 수 있는 취약점입니다.
+      피싱 공격, 악성코드 유포 등에 악용될 수 있습니다.
+    </div>
+
+    <form method="get">
+      <label for="url"><strong>리다이렉트할 URL을 입력하세요</strong></label>
+      <input type="text" name="url" id="url" placeholder="예: https://example.com">
+
+      <button type="submit" name="mode" value="vulnerable" class="vulnerable">
+        ❌ 취약코드 테스트
+      </button>
+      <button type="submit" name="mode" value="safe" class="safe">
+        ✅ 안전코드 테스트
+      </button>
+    </form>
+
+    <div class="info-box" style="background: #e7f3ff; border-color: #2196F3; margin: 20px 0;">
+      <h3>💡 학습 안내</h3>
+      <p>
+        실제 환경에서는 취약한 코드 실행 시 즉시 리다이렉트되지만,<br>
+        <strong>학습 목적으로 결과 페이지에서 무엇이 문제인지 확인</strong>할 수 있도록 구성했습니다.
+      </p>
+    </div>
+
+    <div class="test-links">
+      <h3>🚀 빠른 테스트</h3>
+
+      <div class="test-link-item">
+        <span class="label">✅ 내부 경로 (안전):</span>
+        <a href="?url=/myapp/&mode=safe">
+          ?url=/myapp/&mode=safe
+        </a>
+        <div style="color: #666; font-size: 12px; margin-top: 5px;">
+          💡 상대 경로는 내부 페이지로 안전하게 이동
+        </div>
+      </div>
+
+      <div class="test-link-item" style="border-left-color: #28a745;">
+        <span class="label">✅ 화이트리스트 도메인 (안전):</span>
+        <a href="?url=https://example.com&mode=safe">
+          ?url=https://example.com&mode=safe
+        </a>
+        <div style="color: #666; font-size: 12px; margin-top: 5px;">
+          💡 허용 목록에 있는 도메인으로 이동 가능
+        </div>
+      </div>
+
+      <div class="test-link-item" style="border-left-color: #dc3545;">
+        <span class="label">❌ 외부 사이트로 리다이렉트 (취약):</span>
+        <a href="?url=https://google.com&mode=vulnerable">
+          ?url=https://google.com&mode=vulnerable
+        </a>
+        <div style="color: #dc3545; font-size: 12px; margin-top: 5px; font-weight: bold;">
+          ⚠️ 검증 없이 구글로 리다이렉트 허용됨 (취약점!)
+        </div>
+      </div>
+
+      <div class="test-link-item" style="border-left-color: #28a745;">
+        <span class="label">✅ 외부 사이트 차단 (안전):</span>
+        <a href="?url=https://google.com&mode=safe">
+          ?url=https://google.com&mode=safe
+        </a>
+        <div style="color: #28a745; font-size: 12px; margin-top: 5px; font-weight: bold;">
+          🛡️ 화이트리스트에 없어 차단됨
+        </div>
+      </div>
+    </div>
+
+    <div class="attack-example">
+      <h3>공격 예제</h3>
+      <p><strong>정상 입력:</strong> <code>/myapp/</code> → 내부 페이지로 이동</p>
+      <p><strong>악의적 입력:</strong></p>
+      <div class="code">
+        # 외부 피싱 사이트로 리다이렉트<br>
+        ?url=https://evil-phishing-site.com/fake-login<br>
+        <br>
+        # 프로토콜 우회 시도<br>
+        ?url=//evil-site.com<br>
+        <br>
+        # JavaScript 프로토콜 악용<br>
+        ?url=javascript:alert('XSS')
+      </div>
+
+      <h4>💡 실제 공격 시나리오</h4>
+      <ul>
+        <li>1. 공격자가 정상적인 웹사이트의 Open Redirect 취약점을 발견</li>
+        <li>2. 악의적인 URL을 포함한 링크를 제작하여 이메일/SNS로 배포</li>
+        <li>3. 사용자는 신뢰하는 도메인이 포함된 링크를 클릭</li>
+        <li>4. 정상 사이트를 거쳐 피싱 사이트로 자동 리다이렉트</li>
+        <li>5. 사용자는 정상 사이트에서 이동한 것으로 착각하여 개인정보 입력</li>
+      </ul>
+
+      <h4>💡 취약한 코드 vs 안전한 코드</h4>
+      <div class="code">
+        # ❌ 취약한 코드<br>
+        def redirect_view(request):<br>
+        &nbsp;&nbsp;url = request.GET.get('url')<br>
+        &nbsp;&nbsp;return redirect(url)  # 위험! 검증 없이 바로 리다이렉트<br>
+        <br>
+        # ✅ 안전한 코드 (화이트리스트 방식)<br>
+        ALLOWED_DOMAINS = ['example.com', 'trusted-site.com']<br>
+        <br>
+        def safe_redirect_view(request):<br>
+        &nbsp;&nbsp;url = request.GET.get('url')<br>
+        &nbsp;&nbsp;<br>
+        &nbsp;&nbsp;# 상대 경로만 허용<br>
+        &nbsp;&nbsp;if url.startswith('/') and not url.startswith('//'):<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;return redirect(url)<br>
+        &nbsp;&nbsp;<br>
+        &nbsp;&nbsp;# 절대 경로는 화이트리스트 검증<br>
+        &nbsp;&nbsp;from urllib.parse import urlparse<br>
+        &nbsp;&nbsp;parsed = urlparse(url)<br>
+        &nbsp;&nbsp;if parsed.netloc in ALLOWED_DOMAINS:<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;return redirect(url)<br>
+        &nbsp;&nbsp;<br>
+        &nbsp;&nbsp;return HttpResponse("허용되지 않은 도메인입니다.")
+      </div>
+
+      <p><strong>방어 방법</strong></p>
+      <ul>
+        <li>화이트리스트: 허용된 도메인 목록만 리다이렉트 허용</li>
+        <li>상대 경로 우선: 내부 경로(/myapp/)만 허용</li>
+        <li>URL 파싱: urlparse로 도메인 추출 후 검증</li>
+        <li>프로토콜 검증: http/https만 허용, javascript: 등 차단</li>
+      </ul>
+    </div>
+
+    <div class="links">
+      <a href="{% url 'index' %}">🏠 메인으로</a>
+    </div>
+  </div>
+</body>
+</html>

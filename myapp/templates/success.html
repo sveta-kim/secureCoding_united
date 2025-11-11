@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="{% static 'css/common.css' %}">
   <style>
     body {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, #bfe9ff 0%, #ff6e7f 100%);
       min-height: 100vh;
       padding: 20px;
     }
@@ -94,6 +94,14 @@
       border-left: 4px solid #dc3545;
     }
 
+    .success-message {
+      background: #d4edda;
+      color: #155724;
+      padding: 12px;
+      border-radius: 5px;
+      border-left: 4px solid #28a745;
+    }
+
     .no-data {
       color: #999;
       text-align: center;
@@ -137,9 +145,15 @@
       <h3>📊 실행 결과</h3>
 
       {% if message %}
-        <div class="error-message">
-          <strong>⚠️ 오류:</strong> {{ message }}
-        </div>
+        {% if error_detail or '오류' in message or '실패' in message or '없습니다' in message or '허용되지' in message or '초과' in message %}
+          <div class="error-message">
+            <strong>⚠️ 오류:</strong> {{ message }}
+          </div>
+        {% else %}
+          <div class="success-message">
+            <strong>✅ 성공:</strong> {{ message }}
+          </div>
+        {% endif %}
       {% endif %}
 
       {% if results %}
@@ -154,6 +168,28 @@
         {% endif %}
       {% endif %}
     </div>
+
+    {% if redirect_url %}
+    <!-- Open Redirect 전용: 실제 리다이렉트 버튼 -->
+    <div class="redirect-box">
+      <h3>🔗 리다이렉트 테스트</h3>
+      <p>실제 환경에서는 자동으로 이동하지만, 학습을 위해 버튼으로 제공합니다.</p>
+
+      <a href="{{ redirect_url }}"
+         class="redirect-btn {% if mode == 'vulnerable' %}danger{% endif %}"
+         target="_blank">
+        {% if mode == 'vulnerable' %}
+          ⚠️ 위험한 사이트로 이동해보기
+        {% else %}
+          ✅ 안전한 사이트로 이동해보기
+        {% endif %}
+      </a>
+
+      <div style="margin-top: 15px; color: #666; font-size: 14px;">
+        💡 새 탭에서 {{ redirect_url }} 로 이동합니다
+      </div>
+    </div>
+    {% endif %}
 
     {% if mode == 'vulnerable' and results %}
     <div class="warning-box">

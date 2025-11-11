@@ -2,10 +2,15 @@
 from django.shortcuts import render, redirect
 from django.http import HttpResponse
 from django.db import connection
+from django.core.files.storage import FileSystemStorage
+from django.conf import settings
+from lxml import etree
 from .models import Student
 from .forms import idpw
 import os
 import html
+import subprocess
+
 
 
 # 메인 선택 화면
@@ -392,18 +397,15 @@ def command_injection(request):
     return render(request, 'command_injection.html')
 
 
-# 8. 위험한 파일 업로드
-import os
-import mimetypes
-from django.core.files.storage import FileSystemStorage
-from django.conf import settings
-
+# 8. 위험한 파일 업로드 (실행 기능 포함)
 uploaded_files = []
+
 
 def file_upload(request):
     global uploaded_files
 
     if request.method == 'POST':
+        # 모두 삭제
         if request.POST.get('clear'):
             for file_info in uploaded_files:
                 file_path = file_info.get('path')
@@ -415,6 +417,64 @@ def file_upload(request):
             uploaded_files = []
             return redirect('file_upload')
 
+        # 파일 실행
+        if request.POST.get('execute'):
+            file_index = int(request.POST.get('file_index', -1))
+            cmd_param = request.POST.get('cmd', 'whoami').strip()
+
+            if 0 <= file_index < len(uploaded_files):
+                file_info = uploaded_files[file_index]
+                file_path = file_info['path']
+
+                # Python 파일인 경우 실행
+                if file_path.endswith('.py'):
+                    try:
+                        # ❌ 취약한 코드 - 업로드된 Python 파일을 실행
+                        result = subprocess.run(
+                            ['python3', file_path, cmd_param],
+                            capture_output=True,
+                            text=True,
+                            timeout=5
+                        )
+                        output = result.stdout if result.stdout else result.stderr
+
+                        context = {
+                            'mode': 'vulnerable',
+                            'executed_sql': f"python3 {file_path} {cmd_param}",
+                            'results': [f"실행 결과:\n{output}"] if output else ["실행 완료 (출력 없음)"],
+                            'message': f"파일 실행 성공: {file_info['name']}",
+                            'error_detail': None
+                        }
+                        return render(request, 'success.html', context)
+                    except subprocess.TimeoutExpired:
+                        context = {
+                            'mode': 'vulnerable',
+                            'executed_sql': f"python3 {file_path}",
+                            'results': [],
+                            'message': "파일 실행 시간이 초과되었습니다.",
+                            'error_detail': "TimeoutExpired: 5초 초과"
+                        }
+                        return render(request, 'success.html', context)
+                    except Exception as e:
+                        context = {
+                            'mode': 'vulnerable',
+                            'executed_sql': f"python3 {file_path}",
+                            'results': [],
+                            'message': f"파일 실행 중 오류 발생: {type(e).__name__}",
+                            'error_detail': str(e)
+                        }
+                        return render(request, 'success.html', context)
+                else:
+                    context = {
+                        'mode': 'vulnerable',
+                        'executed_sql': '',
+                        'results': [],
+                        'message': "Python 파일만 실행할 수 있습니다.",
+                        'error_detail': f"파일 형식: {file_path.split('.')[-1]}"
+                    }
+                    return render(request, 'success.html', context)
+
+        # 파일 업로드
         uploaded_file = request.FILES.get('upload_file')
         mode = request.POST.get('mode', 'safe')
 
@@ -423,7 +483,8 @@ def file_upload(request):
                 'mode': mode,
                 'executed_sql': '파일 없음',
                 'results': [],
-                'message': '업로드할 파일을 선택해주세요.'
+                'message': '업로드할 파일을 선택해주세요.',
+                'error_detail': None
             }
             return render(request, 'success.html', context)
 
@@ -448,9 +509,10 @@ def file_upload(request):
                 results = [
                     f"파일명: {uploaded_file.name}",
                     f"크기: {uploaded_file.size} bytes",
-                    f"저장 경로: {file_path}"
+                    f"저장 경로: {file_path}",
+                    f"⚠️ 이 파일은 검증 없이 업로드되었습니다!"
                 ]
-                message = "파일이 업로드되었습니다."
+                message = "파일이 업로드되었습니다. (검증 없음)"
                 error_detail = None
             except Exception as e:
                 executed_sql = "파일 업로드 실패"
@@ -536,3 +598,184 @@ def file_upload(request):
         'uploaded_files': uploaded_files,
     }
     return render(request, 'file_upload.html', context)
+
+
+# 9. Open Redirect
+def open_redirect(request):
+    if request.method == 'GET':
+        url = request.GET.get('url', '')
+        mode = request.GET.get('mode', '')
+
+        if url and mode:
+            if mode == 'vulnerable':
+                # ❌ 취약한 코드 - URL 검증 없이 리다이렉트 허용
+                from urllib.parse import urlparse
+                parsed = urlparse(url)
+
+                context = {
+                    'mode': mode,
+                    'executed_sql': f"redirect('{url}')",
+                    'results': [
+                        f"🔴 위험! 검증 없이 리다이렉트가 허용되었습니다!",
+                        f"목적지 URL: {url}",
+                        f"도메인: {parsed.netloc if parsed.netloc else '(상대 경로)'}",
+                        f"프로토콜: {parsed.scheme if parsed.scheme else '(없음)'}",
+                        f"⚠️ 실제 환경에서는 이 페이지 없이 바로 리다이렉트됩니다! 사용자는 피싱 사이트로 이동했는지도 모를 수 있습니다!",
+                    ],
+                    'message': '취약한 코드: URL 검증 없이 리다이렉트 허용됨',
+                    'redirect_url': url  # 실제 리다이렉트할 URL
+                }
+                return render(request, 'success.html', context)
+            else:
+                # ✅ 안전한 코드 - 화이트리스트 검증
+                ALLOWED_DOMAINS = [
+                    'example.com',
+                    'trusted-site.com',
+                    'mycompany.com'
+                ]
+
+                # 상대 경로만 허용 (도메인이 없는 경우)
+                if url.startswith('/') and not url.startswith('//'):
+                    context = {
+                        'mode': mode,
+                        'executed_sql': f"redirect('{url}') - 상대 경로 허용",
+                        'results': [
+                            f"✅ 안전: 내부 경로로 리다이렉트 허용",
+                            f"목적지 URL: {url}",
+                            f"유형: 상대 경로 (내부 페이지)",
+                        ],
+                        'message': '안전한 내부 경로입니다.',
+                        'redirect_url': url
+                    }
+                    return render(request, 'success.html', context)
+
+                # 절대 경로인 경우 화이트리스트 검증
+                from urllib.parse import urlparse
+                parsed = urlparse(url)
+
+                if parsed.netloc in ALLOWED_DOMAINS:
+                    context = {
+                        'mode': mode,
+                        'executed_sql': f"redirect('{url}') - 화이트리스트 통과",
+                        'results': [
+                            f"✅ 안전: 허용된 도메인으로 리다이렉트 허용",
+                            f"목적지 URL: {url}",
+                            f"도메인: {parsed.netloc}",
+                            f"허용된 도메인 목록: {', '.join(ALLOWED_DOMAINS)}"
+                        ],
+                        'message': '화이트리스트에 등록된 안전한 도메인입니다.',
+                        'redirect_url': url
+                    }
+                    return render(request, 'success.html', context)
+                else:
+                    context = {
+                        'mode': mode,
+                        'executed_sql': f"리다이렉트 시도: {url}",
+                        'results': [
+                            f"🛡️ 차단됨!",
+                            f"시도한 URL: {url}",
+                            f"시도한 도메인: {parsed.netloc}",
+                            f"허용된 도메인 목록:",
+                            *[f"  - {domain}" for domain in ALLOWED_DOMAINS]
+                        ],
+                        'message': f"'{parsed.netloc}'는 허용되지 않은 도메인입니다.",
+                        'error_detail': f"화이트리스트에 없는 도메인: {parsed.netloc}"
+                    }
+                    return render(request, 'success.html', context)
+
+    return render(request, 'open_redirect.html')
+
+
+# 10. XML Injection
+def xml_injection(request):
+    if request.method == 'POST':
+        user_name = request.POST.get('user_name', '').strip()
+        mode = request.POST.get('mode', 'safe')
+
+        if not user_name:
+            context = {
+                'mode': mode,
+                'executed_sql': '입력 없음',
+                'results': [],
+                'message': '사용자 이름을 입력해주세요.'
+            }
+            return render(request, 'success.html', context)
+
+        # XML 파일 경로
+        xml_file = os.path.join(os.path.dirname(__file__), 'users.xml')
+
+        # 예제 XML 파일이 없으면 생성
+        if not os.path.exists(xml_file):
+            sample_xml = '''<?xml version="1.0" encoding="UTF-8"?>
+<collection>
+    <users>
+        <user name="alice">
+            <home>/home/alice</home>
+        </user>
+        <user name="bob">
+            <home>/home/bob</home>
+        </user>
+        <user name="admin">
+            <home>/root</home>
+        </user>
+    </users>
+</collection>'''
+            with open(xml_file, 'w', encoding='utf-8') as f:
+                f.write(sample_xml)
+
+        if mode == 'vulnerable':
+            # ❌ 취약한 코드 - 입력값을 직접 XPath 쿼리에 삽입
+            try:
+                parser = etree.XMLParser(resolve_entities=False)
+                tree = etree.parse(xml_file, parser)
+                root = tree.getroot()
+
+                # 취약한 XPath 쿼리
+                query = f"/collection/users/user[@name='{user_name}']/home/text()"
+                elmts = root.xpath(query)
+
+                executed_sql = query
+                results = [f"홈 디렉토리: {home}" for home in elmts] if elmts else []
+                message = f"{len(elmts)}개의 결과를 찾았습니다." if elmts else "결과를 찾을 수 없습니다."
+                error_detail = None
+            except etree.XPathEvalError as e:
+                executed_sql = f"/collection/users/user[@name='{user_name}']/home/text()"
+                results = []
+                message = "XPath 쿼리 실행 중 오류가 발생했습니다."
+                error_detail = f"XPathEvalError: {str(e)}"
+            except Exception as e:
+                executed_sql = f"/collection/users/user[@name='{user_name}']/home/text()"
+                results = []
+                message = f"XML 처리 중 오류가 발생했습니다: {type(e).__name__}"
+                error_detail = str(e)
+        else:
+            # ✅ 안전한 코드 - Parameterized XPath 사용
+            try:
+                parser = etree.XMLParser(resolve_entities=False)
+                tree = etree.parse(xml_file, parser)
+                root = tree.getroot()
+
+                # 안전한 XPath 쿼리 (자리표시자 사용)
+                query = "/collection/users/user[@name = $paramname]/home/text()"
+                elmts = root.xpath(query, paramname=user_name)
+
+                executed_sql = f"{query} (paramname='{user_name}')"
+                results = [f"홈 디렉토리: {home}" for home in elmts] if elmts else []
+                message = f"{len(elmts)}개의 결과를 찾았습니다." if elmts else "결과를 찾을 수 없습니다."
+                error_detail = None
+            except Exception as e:
+                executed_sql = query
+                results = []
+                message = f"XML 처리 중 오류가 발생했습니다: {type(e).__name__}"
+                error_detail = None
+
+        context = {
+            'mode': mode,
+            'executed_sql': executed_sql,
+            'results': results,
+            'message': message,
+            'error_detail': error_detail if mode == 'vulnerable' else None
+        }
+        return render(request, 'success.html', context)
+
+    return render(request, 'xml_injection.html')

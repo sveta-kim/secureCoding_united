@@ -20,7 +20,7 @@
                 <div class="card-desc">데이터베이스 쿼리 조작을 통한 무단 접근 테스트</div>
             </a>
 
-            <a href="{% url 'code_injection' %}" class="card code">
+            <a href="{% url 'code_injection' %}" class="card code_">
                 <div class="card-icon">⚙️</div>
                 <div class="card-title">Code Injection</div>
                 <div class="card-desc">Python 코드 실행을 통한 코드 삽입 테스트</div>
@@ -60,6 +60,18 @@
                 <div class="card-icon">📤</div>
                 <div class="card-title">File Upload</div>
                 <div class="card-desc">위험한 파일 업로드를 통한 시스템 침투 테스트</div>
+            </a>
+
+            <a href="{% url 'open_redirect' %}" class="card" style="background: linear-gradient(135deg, #FF6B9D 0%, #C06C84 100%); color: white; border: none;">
+                <div class="card-icon">🔗</div>
+                <div class="card-title">Open Redirect</div>
+                <div class="card-desc">URL 검증 없는 리다이렉트를 통한 피싱 공격 테스트</div>
+            </a>
+
+            <a href="{% url 'xml_injection' %}" class="card" style="background: linear-gradient(135deg, #9C27B0 0%, #E040FB 100%); color: white; border: none;">
+                <div class="card-icon">📄</div>
+                <div class="card-title">XML Injection</div>
+                <div class="card-desc">XPath 쿼리 조작을 통한 XML 데이터 접근 테스트</div>
             </a>
         </div>
 

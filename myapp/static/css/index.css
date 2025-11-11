@@ -1,7 +1,7 @@
 /* myapp/static/css/index.css - 메인 홈 화면 전용 스타일 */
 
 body {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #bfe9ff 0%, #ff6e7f 100%);
     min-height: 100vh;
     display: flex;
     justify-content: center;
@@ -79,7 +79,7 @@ h1 {
     border: none;
 }
 
-.code {
+.code_ {
     background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
     color: white;
     border: none;

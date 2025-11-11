@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<collection>
+    <users>
+        <user name="alice">
+            <home>/home/alice</home>
+        </user>
+        <user name="bob">
+            <home>/home/bob</home>
+        </user>
+        <user name="admin">
+            <home>/root</home>
+        </user>
+    </users>
+</collection>

@@ -22,6 +22,10 @@
       margin: 10px 0;
       border-left: 3px solid #007bff;
     }
+    .file-item.vulnerable {
+      border-left: 3px solid #dc3545;
+      background: #fff5f5;
+    }
     .file-name {
       font-weight: bold;
       color: #333;
@@ -30,6 +34,30 @@
     .file-info {
       color: #666;
       font-size: 14px;
+    }
+    .execute-form {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid #ddd;
+    }
+    .execute-form input {
+      padding: 5px 10px;
+      margin-right: 5px;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+      font-family: 'Courier New', monospace;
+    }
+    .execute-btn {
+      background: #ff6b6b;
+      color: white;
+      padding: 5px 15px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .execute-btn:hover {
+      background: #ff5252;
     }
   </style>
 </head>
@@ -70,7 +98,7 @@
       <h2>📋 업로드된 파일 목록 ({{ uploaded_files|length }}개)</h2>
       {% if uploaded_files %}
         {% for file in uploaded_files %}
-        <div class="file-item">
+        <div class="file-item {% if not file.is_safe %}vulnerable{% endif %}">
           <div class="file-name">
             {% if file.saved_name %}
               📄 {{ file.name }} → {{ file.saved_name }}
@@ -87,6 +115,23 @@
           <small style="color: #999;">
             모드: {% if file.is_safe %}✅ 안전코드{% else %}❌ 취약코드{% endif %}
           </small>
+
+          <!-- Python 파일이고 취약코드로 업로드된 경우 실행 가능 -->
+          {% if not file.is_safe and file.name|slice:"-3:" == ".py" %}
+          <div class="execute-form">
+            <form method="post" style="display: inline-block;">
+              {% csrf_token %}
+              <input type="hidden" name="execute" value="true">
+              <input type="hidden" name="file_index" value="{{ forloop.counter0 }}">
+              <label style="font-size: 13px; color: #666;">명령어 인자:</label>
+              <input type="text" name="cmd" placeholder="whoami" style="width: 150px;">
+              <button type="submit" class="execute-btn">⚡ 파일 실행</button>
+            </form>
+            <small style="display: block; margin-top: 5px; color: #dc3545;">
+              ⚠️ 이 파일은 검증 없이 업로드되어 실행 가능합니다!
+            </small>
+          </div>
+          {% endif %}
         </div>
         {% endfor %}
       {% else %}
@@ -99,14 +144,19 @@
       <p><strong>정상 파일:</strong> image.jpg, document.pdf</p>
       <p><strong>악의적 파일:</strong></p>
 
-      <h4>1️⃣ 웹쉘 업로드 (PHP)</h4>
+      <h4>1️⃣ Python 웹쉘 업로드</h4>
       <div class="code">
-        &lt;?php<br>
-        &nbsp;&nbsp;system($_GET['cmd']);<br>
-        ?&gt;<br>
+        # shell.py 파일 내용<br>
+        import os<br>
+        import sys<br>
         <br>
-        # shell.php로 저장 후 업로드<br>
-        # 접근: http://target.com/uploads/shell.php?cmd=whoami
+        if len(sys.argv) > 1:<br>
+        &nbsp;&nbsp;os.system(sys.argv[1])<br>
+        else:<br>
+        &nbsp;&nbsp;os.system('whoami')<br>
+        <br>
+        # 파일을 shell.py로 저장 후 취약코드로 업로드<br>
+        # "파일 실행" 버튼으로 시스템 명령어 실행 가능!
       </div>
 
       <h4>2️⃣ 확장자 우회 시도</h4>
@@ -117,10 +167,18 @@
         <li><code>shell.php5</code> - 대체 확장자</li>
       </ul>
 
-      <h4>3️⃣ MIME 타입 위조</h4>
+      <h4>3️⃣ 실제 공격 시나리오</h4>
       <div class="code">
-        # 악성 PHP 파일의 헤더를 image/jpeg로 위조<br>
-        # Content-Type: image/jpeg 설정
+        # 1단계: Python 웹쉘 파일 생성<br>
+        # shell.py 파일을 만들어 악성 코드 작성<br>
+        <br>
+        # 2단계: 취약한 업로드 기능으로 파일 업로드<br>
+        # 서버가 파일 확장자만 보고 .jpg로 판단하도록 shell.py 업로드<br>
+        <br>
+        # 3단계: 업로드된 파일 실행<br>
+        # "파일 실행" 버튼으로 whoami, ls 등 시스템 명령어 실행<br>
+        <br>
+        # 결과: 서버 제어권 탈취! 🚨
       </div>
 
       <h4>💡 안전한 파일 업로드 구현</h4>
@@ -138,10 +196,11 @@
         safe_name = f"{uuid.uuid4()}.jpg"<br>
         <br>
         # 5. 웹 루트 외부에 저장<br>
-        # 6. 실행 권한 제거
+        # 6. 실행 권한 제거<br>
+        # 7. 업로드된 파일은 절대 실행하지 않기!
       </div>
 
-      <p><strong>실제 공격 시나리오</strong></p>
+      <p><strong>실제 공격 결과</strong></p>
       <ul>
         <li>웹쉘 업로드 → 시스템 명령어 실행</li>
         <li>악성 스크립트 업로드 → 다른 사용자 감염</li>

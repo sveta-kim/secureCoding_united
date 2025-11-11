@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'css/common.css' %}">
+  <link rel="stylesheet" href="{% static 'css/test-pages.css' %}">
+  <title>XML Injection 테스트</title>
+  <style>
+    li { list-style-type: none; }
+
+    .xml-injection h1 {
+      border-bottom: 3px solid #9C27B0;
+    }
+
+    .xml-sample {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 5px;
+      margin: 15px 0;
+      border-left: 4px solid #9C27B0;
+    }
+
+    .xml-sample h4 {
+      color: #9C27B0;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container xml-injection">
+    <h1>📄 XML Injection 테스트</h1>
+
+    <div class="description">
+      <strong>XML Injection이란?</strong><br>
+      애플리케이션에서 외부 입력값을 검증하지 않고 XML 쿼리(XPath)에 삽입할 때,
+      공격자가 임의의 XPath 구문을 삽입하여 인증을 우회하거나 민감한 데이터를 조회할 수 있는 취약점입니다.
+    </div>
+
+    <div class="xml-sample">
+      <h4>📝 테스트용 XML 데이터 구조</h4>
+      <div class="code">
+        &lt;?xml version="1.0" encoding="UTF-8"?&gt;<br>
+        &lt;collection&gt;<br>
+        &nbsp;&nbsp;&lt;users&gt;<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&lt;user name="alice"&gt;<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;home&gt;/home/alice&lt;/home&gt;<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&lt;/user&gt;<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&lt;user name="bob"&gt;<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;home&gt;/home/bob&lt;/home&gt;<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&lt;/user&gt;<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&lt;user name="admin"&gt;<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&lt;home&gt;/root&lt;/home&gt;<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&lt;/user&gt;<br>
+        &nbsp;&nbsp;&lt;/users&gt;<br>
+        &lt;/collection&gt;
+      </div>
+    </div>
+
+    <form method="post">
+      {% csrf_token %}
+      <label for="user_name"><strong>사용자 이름을 입력하세요</strong></label>
+      <input type="text" name="user_name" id="user_name" placeholder="예: alice">
+
+      <button type="submit" name="mode" value="vulnerable" class="vulnerable">
+        ❌ 취약코드 테스트
+      </button>
+      <button type="submit" name="mode" value="safe" class="safe">
+        ✅ 안전코드 테스트
+      </button>
+    </form>
+
+    <div class="attack-example">
+      <h3>공격 예제</h3>
+      <p><strong>정상 입력:</strong> <code>alice</code> → alice의 홈 디렉토리 조회</p>
+      <p><strong>악의적 입력:</strong></p>
+      <div class="code">
+        # XPath Injection으로 모든 사용자 조회<br>
+        ' or '1'='1<br>
+        <br>
+        # 실행되는 XPath 쿼리 (취약한 경우)<br>
+        /collection/users/user[@name='' or '1'='1']/home/text()<br>
+        <br>
+        # 결과: 모든 사용자의 홈 디렉토리가 조회됨<br>
+        /home/alice<br>
+        /home/bob<br>
+        /root
+      </div>
+
+      <h4>💡 다양한 XPath Injection 페이로드</h4>
+      <ul>
+        <li><code>' or '1'='1</code> - 모든 데이터 조회</li>
+        <li><code>' or 1=1 or '1'='1</code> - 조건 우회</li>
+        <li><code>admin' or '1'='1</code> - 특정 사용자와 OR 조건</li>
+        <li><code>' or count(//user)>0 or '1'='1</code> - 복잡한 구조 탐색</li>
+      </ul>
+
+      <h4>💡 취약한 코드 vs 안전한 코드</h4>
+      <div class="code">
+        # ❌ 취약한 코드<br>
+        user_name = request.POST.get('user_name')<br>
+        query = f"/collection/users/user[@name='{user_name}']/home/text()"<br>
+        results = root.xpath(query)  # 위험! 입력값이 직접 쿼리에 삽입됨<br>
+        <br>
+        # ✅ 안전한 코드 (Parameterized XPath)<br>
+        user_name = request.POST.get('user_name')<br>
+        query = "/collection/users/user[@name = $paramname]/home/text()"<br>
+        results = root.xpath(query, paramname=user_name)  # 안전! 파라미터 바인딩
+      </div>
+
+      <h4>🛡️ 방어 방법</h4>
+      <ul>
+        <li><strong>Parameterized XPath 사용:</strong> XPath 변수를 사용하여 입력값 분리</li>
+        <li><strong>입력값 검증:</strong> 특수문자(', ", [, ], /) 필터링</li>
+        <li><strong>화이트리스트:</strong> 허용된 문자만 입력 받기</li>
+        <li><strong>최소 권한:</strong> XML 데이터에 최소한의 권한만 부여</li>
+        <li><strong>XXE 방어:</strong> External Entity 비활성화</li>
+      </ul>
+
+      <h4>⚠️ 실제 공격 시나리오</h4>
+      <ul>
+        <li>1. 공격자가 XML 기반 인증 시스템의 취약점 발견</li>
+        <li>2. XPath Injection으로 인증 우회 (admin' or '1'='1)</li>
+        <li>3. 모든 사용자의 정보 조회 가능</li>
+        <li>4. 관리자 계정으로 시스템 침투</li>
+        <li>5. 민감한 설정 파일(/root) 접근</li>
+      </ul>
+    </div>
+
+    <div class="links">
+      <a href="{% url 'index' %}">🏠 메인으로</a>
+    </div>
+  </div>
+</body>
+</html>
